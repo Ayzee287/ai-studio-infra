@@ -120,6 +120,20 @@ def run_doctor(argv: list[str]) -> int:
                 required,
             )
 
+    # ---------------------------------------------------------- git behaviour
+    if os.name == "nt":
+        rc, lp = run(["git", "config", "--global", "--get", "core.longpaths"], timeout=20)
+        if lp.strip().lower() == "true":
+            add("Prerequisites", "git core.longpaths", PASS, "enabled")
+        else:
+            add(
+                "Prerequisites",
+                "git core.longpaths",
+                WARN,
+                "disabled",
+                "restoring the vault can fail with 'Filename too long'; run: studio bootstrap",
+            )
+
     # ---------------------------------------------------------- vault
     vault = find_vault()
     if vault:

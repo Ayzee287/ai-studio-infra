@@ -205,6 +205,29 @@ def _sync_github_helper(r: Runner) -> None:
                 dst_cmd.write_text(content, encoding="ascii", newline="")
 
 
+def _sync_git_longpaths(r: Runner) -> None:
+    """Ensure Windows git can check out long paths.
+
+    Found by an actual recovery test, not by reading docs: cloning the knowledge vault
+    failed with 'Filename too long' because Windows' MAX_PATH is 260 characters and git
+    defaults core.longpaths to false. The vault legitimately contains 111-character paths
+    (dated note titles, plus an archived object store) and will only grow, so any clone
+    into a moderately deep directory silently loses files. A backup that cannot be
+    restored is not a backup, so this belongs in bootstrap rather than in a README.
+    """
+    if os.name != "nt":
+        return
+    print("\n  Git configuration")
+    rc, out = run(["git", "config", "--global", "--get", "core.longpaths"], timeout=20)
+    if out.strip().lower() == "true":
+        r.ok("core.longpaths: already enabled")
+        return
+    if r.act("core.longpaths: enable globally (required to clone deep repos on Windows)"):
+        rc2, out2 = run(["git", "config", "--global", "core.longpaths", "true"], timeout=20)
+        if rc2 != 0:
+            r.warn(f"  could not set core.longpaths: {out2[:120]}")
+
+
 def _sync_plugins(manifest: dict, r: Runner) -> None:
     print("\n  Marketplaces and plugins")
     cli = find_claude_cli()
@@ -313,6 +336,7 @@ def run_bootstrap(argv: list[str]) -> int:
     print(f"    vault   {ctx.get('VAULT', '(not found -- set STUDIO_VAULT)')}")
     print(f"    backups {claude_home() / 'backups' / tag}")
 
+    _sync_git_longpaths(r)
     _sync_mcp(manifest, ctx, r)
     _sync_github_helper(r)
     _sync_plugins(manifest, r)
