@@ -1,0 +1,298 @@
+{
+  "$comment": [
+    "Declarative desired state for the AI Studio Claude Code environment.",
+    "This file is DATA. bootstrap reads it to converge the machine; doctor reads it to",
+    "report drift. Neither hardcodes a capability list. Adding a capability means editing",
+    "this file, not editing code -- see docs/adding-a-capability.md.",
+    "",
+    "Absolute machine paths NEVER appear here. Anything machine-specific is resolved at",
+    "runtime (see lib/detect.py) or supplied by the operator via environment variables.",
+    "Credentials NEVER appear here."
+  ],
+  "schemaVersion": 1,
+  "studio": {
+    "name": "AI Studio",
+    "minClaudeCode": "2.1.121",
+    "minPython": "3.10",
+    "$comment_minClaudeCode": "2.1.121 is the first release with MCP tool search + alwaysLoad."
+  },
+
+  "prerequisites": [
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "detect": { "kind": "claude-cli" },
+      "required": true,
+      "install": "Install the Claude Code VS Code extension or the standalone CLI from https://code.claude.com",
+      "notes": "The VS Code extension ships its own binary that is not on PATH; detection searches for it."
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "detect": { "kind": "command", "command": "git", "versionArgs": ["--version"] },
+      "required": true,
+      "install": "https://git-scm.com/downloads"
+    },
+    {
+      "id": "node",
+      "name": "Node.js (provides npx for stdio MCP servers)",
+      "detect": { "kind": "command", "command": "node", "versionArgs": ["--version"] },
+      "required": true,
+      "minVersion": "18",
+      "install": "https://nodejs.org"
+    },
+    {
+      "id": "python",
+      "name": "Python 3.10+",
+      "detect": { "kind": "python" },
+      "required": true,
+      "install": "https://python.org",
+      "notes": "Runs the vault MCP servers (graphify.serve, aistudio-retrieval) and this CLI."
+    },
+    {
+      "id": "chrome",
+      "name": "Google Chrome",
+      "detect": { "kind": "chrome" },
+      "required": false,
+      "install": "https://google.com/chrome",
+      "notes": "Required by chrome-devtools MCP for traces and Lighthouse."
+    },
+    {
+      "id": "typescript-language-server",
+      "name": "typescript-language-server + typescript@5",
+      "detect": { "kind": "command", "command": "typescript-language-server", "versionArgs": ["--version"] },
+      "required": false,
+      "install": "npm install -g typescript-language-server typescript@5",
+      "notes": "Pin typescript to ^5: the typescript-lsp plugin resolves typescript/lib/tsserver.js, which TypeScript 7 no longer ships at that path."
+    },
+    {
+      "id": "gh",
+      "name": "GitHub CLI",
+      "detect": { "kind": "command", "command": "gh", "versionArgs": ["--version"] },
+      "required": false,
+      "install": "winget install --id GitHub.cli",
+      "notes": "Optional. GitHub capability is owned by the github MCP server; gh is a convenience fallback and an alternative credential source for the headers helper."
+    }
+  ],
+
+  "mcpServers": [
+    {
+      "id": "graphify-vault",
+      "scope": "user",
+      "required": false,
+      "transport": "stdio",
+      "command": "${PYTHON}",
+      "args": ["-m", "graphify.serve", "${VAULT}/graphify-out/resolver/resolved-graph.json", "--transport", "stdio"],
+      "requires": ["vault", "python-package:graphify"],
+      "owns": "Ad-hoc structural queries over the vault knowledge graph.",
+      "auth": null,
+      "health": { "kind": "mcp-connect" }
+    },
+    {
+      "id": "aistudio-retrieval",
+      "scope": "user",
+      "required": false,
+      "transport": "stdio",
+      "command": "${PYTHON}",
+      "args": ["${VAULT}/tools/mcp/server.py"],
+      "requires": ["vault"],
+      "owns": "Deterministic retrieval over the vault: decisions, project state, precedent.",
+      "auth": null,
+      "health": { "kind": "mcp-connect" }
+    },
+    {
+      "id": "chrome-devtools",
+      "scope": "user",
+      "required": true,
+      "transport": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "chrome-devtools-mcp@latest"],
+      "posixCommand": "npx",
+      "posixArgs": ["-y", "chrome-devtools-mcp@latest"],
+      "owns": "Browser evidence: screenshots, Lighthouse (perf + a11y), performance traces, console and network.",
+      "auth": null,
+      "health": { "kind": "mcp-connect" }
+    },
+    {
+      "id": "playwright",
+      "scope": "user",
+      "required": true,
+      "transport": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@playwright/mcp@latest"],
+      "posixCommand": "npx",
+      "posixArgs": ["-y", "@playwright/mcp@latest"],
+      "owns": "Driving a UI: clicks, forms, keyboard walks, accessibility-tree snapshots, responsive QA.",
+      "auth": null,
+      "health": { "kind": "mcp-connect" }
+    },
+    {
+      "id": "context7",
+      "scope": "user",
+      "required": true,
+      "transport": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@upstash/context7-mcp"],
+      "posixCommand": "npx",
+      "posixArgs": ["-y", "@upstash/context7-mcp"],
+      "owns": "Version-accurate library and framework documentation.",
+      "auth": null,
+      "health": { "kind": "mcp-connect" }
+    },
+    {
+      "id": "shadcn",
+      "scope": "user",
+      "required": true,
+      "transport": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "shadcn@latest", "mcp"],
+      "posixCommand": "npx",
+      "posixArgs": ["-y", "shadcn@latest", "mcp"],
+      "owns": "Component and section sourcing across shadcn and namespaced registries.",
+      "auth": null,
+      "health": { "kind": "mcp-connect" }
+    },
+    {
+      "id": "figma",
+      "scope": "user",
+      "required": false,
+      "transport": "http",
+      "url": "https://mcp.figma.com/mcp",
+      "owns": "Design source of record: frames, Auto Layout, spacing, type, variables.",
+      "auth": {
+        "kind": "oauth",
+        "operatorAction": "Run /mcp in Claude Code, pick figma, choose Authenticate, complete the browser flow.",
+        "storedBy": "Claude Code credential store (~/.claude/.credentials.json)",
+        "notes": "Read paths work on any seat. Write/generate paths need a Dev or Full seat."
+      },
+      "health": { "kind": "mcp-connect" }
+    },
+    {
+      "id": "github",
+      "scope": "user",
+      "required": false,
+      "transport": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headersHelper": "${CLAUDE_HOME}/bin/github-mcp-headers.cmd",
+      "posixHeadersHelper": "${CLAUDE_HOME}/bin/github-mcp-headers.sh",
+      "owns": "Remote GitHub: repositories, branches, commits, PRs, issues, Actions/CI status, releases, repository creation.",
+      "auth": {
+        "kind": "headers-helper",
+        "operatorAction": "Ensure a GitHub credential exists in the OS store: either 'gh auth login', or push once over HTTPS so Git Credential Manager stores one. Alternatively export GITHUB_PERSONAL_ACCESS_TOKEN.",
+        "storedBy": "OS credential store (Git Credential Manager or GitHub CLI). NEVER written to ~/.claude.json or this repository.",
+        "notes": "api.githubcopilot.com does not support RFC 7591 dynamic client registration, so Claude Code cannot OAuth against it. The headers helper reads a token at connect time instead, which keeps zero credentials at rest in configuration."
+      },
+      "health": { "kind": "mcp-connect" }
+    }
+  ],
+
+  "plugins": [
+    {
+      "id": "frontend-design",
+      "marketplace": "claude-plugins-official",
+      "scope": "user",
+      "required": true,
+      "owns": "Design DIRECTION for new UI: aesthetic point of view, type pairing, signature element."
+    },
+    {
+      "id": "typescript-lsp",
+      "marketplace": "claude-plugins-official",
+      "scope": "user",
+      "required": true,
+      "owns": "Type-aware navigation and diagnostics in TS/JS repositories.",
+      "requires": ["typescript-language-server"]
+    },
+    {
+      "id": "pr-review-toolkit",
+      "marketplace": "claude-plugins-official",
+      "scope": "user",
+      "required": true,
+      "owns": "Specialised diff review agents: silent failures, type design, tests, comments."
+    }
+  ],
+
+  "marketplaces": [
+    {
+      "id": "claude-plugins-official",
+      "source": "github",
+      "repo": "anthropics/claude-plugins-official"
+    }
+  ],
+
+  "skills": [
+    {
+      "id": "humanizer",
+      "strategy": "upstream-installer",
+      "scope": "user",
+      "required": true,
+      "source": "blader/humanizer",
+      "license": "MIT",
+      "pinnedVersion": "2.9.1",
+      "install": "npx skills add blader/humanizer --global",
+      "update": "npx skills update humanizer --global",
+      "owns": "Editorial finishing pass on final visitor-facing prose.",
+      "$comment": "Referenced upstream rather than vendored: actively maintained, installer is first-party, and pinning a copy would silently rot."
+    },
+    {
+      "id": "redesign-existing-projects",
+      "strategy": "vendored",
+      "scope": "user",
+      "required": true,
+      "source": "https://raw.githubusercontent.com/Leonxlnx/taste-skill/main/skills/redesign-skill/SKILL.md",
+      "license": "MIT",
+      "vendoredAt": "2026-07-26",
+      "vendoredFrom": "Leonxlnx/taste-skill @ skills/redesign-skill",
+      "localPath": "skills/redesign-existing-projects",
+      "owns": "Design CRITIQUE of an interface that already exists: Scan, Diagnose, Fix.",
+      "$comment": "Vendored deliberately: the upstream repository ships 13 skills, only this one is wanted, and upstream is a fast-moving single-maintainer project. Review the diff before accepting any update. Provenance in the skill's PROVENANCE.md."
+    },
+    {
+      "id": "graphify",
+      "strategy": "external",
+      "scope": "user",
+      "required": false,
+      "owns": "Building knowledge graphs from a corpus (/graphify).",
+      "$comment": "Installed by the graphify Python package itself (graphify claude install); not managed here."
+    }
+  ],
+
+  "config": [
+    {
+      "id": "global-claude-md",
+      "target": "${CLAUDE_HOME}/CLAUDE.md",
+      "source": "config/CLAUDE.global.md",
+      "strategy": "managed-block",
+      "required": true,
+      "owns": "Capability routing: which capability fires when. The behavioural half of the system.",
+      "$comment": "Written as a delimited managed block so operator-authored sections are preserved verbatim."
+    }
+  ],
+
+  "ownership": {
+    "$comment": "Explicit responsibility map. Overlapping ownership is a defect unless justified here.",
+    "git-local": {
+      "owner": "git CLI via Bash",
+      "scope": "Local history: branches, commits, merges, rebases, worktrees, local tags.",
+      "notLocal": "Anything touching a remote is GitHub, below."
+    },
+    "github-remote": {
+      "owner": "github MCP server",
+      "scope": "Repositories, remote branches, PRs, issues, Actions/CI status, releases, repository creation.",
+      "fallback": "gh CLI, if installed. Not required, and deliberately not a second source of truth."
+    },
+    "pr-review": {
+      "owner": "pr-review-toolkit agents (analysis) + github MCP (fetch and post)",
+      "scope": "Reading a diff and judging it. Agents analyse local changes; the MCP moves them to and from GitHub.",
+      "note": "Built-in /code-review and /security-review remain the general-purpose entry points."
+    },
+    "ci-cd": {
+      "owner": "github MCP (Actions toolset)",
+      "scope": "Workflow runs, job status, logs, re-runs."
+    },
+    "vercel": {
+      "owner": "operator, out of band",
+      "scope": "Deployment, domains, environment variables.",
+      "note": "Deliberately NOT integrated. Deploys are operator-owned; the Vercel MCP adds an OAuth wall for a workflow we do not automate."
+    }
+  }
+}
