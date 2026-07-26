@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# AI Studio CLI shim (POSIX). Resolves the repo root from this script's location.
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PY=${STUDIO_PYTHON:-python3}
+command -v "$PY" >/dev/null 2>&1 || PY=python
+exec "$PY" -m studio "$@"
