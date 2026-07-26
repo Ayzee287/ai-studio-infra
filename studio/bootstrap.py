@@ -154,6 +154,13 @@ def _sync_mcp(manifest: dict, ctx: dict, r: Runner) -> None:
         _write_json(claude_json(), cfg, r)
 
 
+def _shell_cmd(cmd: str) -> list[str]:
+    """Wrap a manifest-declared install command for the platform shell."""
+    if os.name == "nt":
+        return ["cmd", "/c", cmd]
+    return ["sh", "-lc", cmd]
+
+
 def _to_posix_path(p: Path) -> str:
     r"""C:\Users\me\x.sh -> /c/Users/me/x.sh  (the form Git Bash expects)."""
     s = str(p).replace("\\", "/")
@@ -232,7 +239,11 @@ def _sync_plugins(manifest: dict, r: Runner) -> None:
     print("\n  Marketplaces and plugins")
     cli = find_claude_cli()
     if not cli:
-        r.warn("Claude Code CLI not found; cannot manage plugins")
+        required = [p["id"] for p in manifest["plugins"] if p.get("required")]
+        r.warn("Claude Code CLI not found -- plugins cannot be installed")
+        if required:
+            r.warn(f"  {len(required)} REQUIRED plugin(s) skipped: {', '.join(required)}")
+        r.warn("  install Claude Code, or set STUDIO_CLAUDE_CLI to its binary, then re-run")
         return
 
     rc, out = run([str(cli), "plugin", "marketplace", "list"], timeout=180)
@@ -291,8 +302,19 @@ def _sync_skills(manifest: dict, r: Runner) -> None:
         if strategy == "upstream-installer":
             if dst.exists():
                 r.ok(f"{sid}: present (upstream installer)")
-            else:
-                r.warn(f"{sid}: missing -- run: {sk.get('install')}")
+                continue
+            cmd = sk.get("install")
+            if not cmd:
+                r.warn(f"{sid}: missing and no install command declared")
+                continue
+            # Run the installer rather than printing it. A step that is universally
+            # required on every clean machine is bootstrap's job, not a README line the
+            # operator has to remember during a recovery.
+            if r.act(f"{sid}: install via upstream installer ({cmd})"):
+                rc, out = run(_shell_cmd(cmd), timeout=600)
+                if rc != 0 or not dst.exists():
+                    r.warn(f"  install failed (rc={rc}): {out[-200:] if out else 'no output'}")
+                    r.warn(f"  run manually: {cmd}")
 
 
 def _sync_config(manifest: dict, ctx: dict, r: Runner) -> None:

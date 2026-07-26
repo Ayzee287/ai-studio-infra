@@ -1,69 +1,127 @@
 # Recovery
 
-> *"My machine died. I have a fresh Windows install, this repository, and the private vault."*
+> *"My machine was destroyed. I have a GitHub account, this repository, and the private
+> knowledge vault repository. Nothing else."*
 
-That scenario is the reason this repository exists. The path back is below; it assumes
-nothing is remembered.
+That scenario is why this repository exists. Everything below has been executed and
+verified, not designed on paper. Where a step needs a human, it is because the credential
+deliberately does not live in Git.
 
-## Shortest reliable path
+## The two halves
+
+| Half | Repository | Contains |
+|---|---|---|
+| **How Claude works** | `ai-studio-infra` (this repo) | MCP servers, plugins, skills, routing, bootstrap, health checks |
+| **What is true** | the private vault (`ai-studio-vault`) | decisions, project state, standards, changelog, client knowledge |
+
+Losing either one alone is survivable. Both are required for a full restore, and both must
+have remotes. A vault with no remote is the single most likely reason a "recoverable"
+environment turns out not to be.
+
+## Full procedure, empty machine to operational
+
+### 1. Prerequisites
+
+Install: **Git**, **Node 18+**, **Python 3.10+**, **Claude Code**, and **Google Chrome**.
+Nothing else needs to be remembered — `studio doctor` names anything missing.
+
+### 2. Restore the environment
 
 ```
-1. Install prerequisites          Git, Node 18+, Python 3.10+, Claude Code, Chrome
-2. git clone <ai-studio-infra>    the infrastructure half
-3. git clone <AI-Studio vault>    the private knowledge half
-4. set STUDIO_VAULT to the vault path
-5. cd ai-studio-infra
-   bin/studio bootstrap           converges MCP, plugins, skills, routing
-6. authenticate (below)
-7. bin/studio doctor              confirm
-8. Restart Claude Code
+git clone https://github.com/<you>/ai-studio-infra.git
+cd ai-studio-infra
+bin/studio bootstrap          # Windows: bin\studio.cmd bootstrap
 ```
 
-Step 5 is the only step that touches configuration, and it is idempotent, so it is safe to
-re-run at any point.
+Bootstrap converges MCP servers, plugins, skills and routing, and enables
+`core.longpaths` on Windows. It is idempotent: safe to re-run at any point.
 
-## Authentication after a rebuild
+> **Why longpaths matters here.** Windows' `MAX_PATH` is 260 characters and Git defaults
+> `core.longpaths` to false. The vault contains 111-character paths, so a clone into a
+> moderately deep directory fails with *"Filename too long"* and silently drops files. This
+> was found by an actual restore test. Bootstrap sets it, which is why step 3 comes after
+> step 2 rather than before.
 
-Two credentials, neither stored in any repository:
+### 3. Restore the knowledge layer
 
-- **GitHub** — `gh auth login`, or simply `git push` once over HTTPS so Git Credential
-  Manager stores a credential. `studio doctor` reports `AUTH REQUIRED` until one exists.
-- **Figma** — in Claude Code run `/mcp`, select `figma`, choose Authenticate.
+```
+git clone https://github.com/<you>/ai-studio-vault.git /path/to/AI-Studio
+setx STUDIO_VAULT "C:\path\to\AI-Studio"        # Windows, persistent
+# export STUDIO_VAULT=/path/to/AI-Studio        # POSIX: add to your shell profile
+```
 
-Everything else (Chrome DevTools, Playwright, Context7, shadcn) needs no credential.
-
-## Restoring the knowledge layer
-
-The vault is a normal git repository. After cloning it:
+Open a **new** shell so `STUDIO_VAULT` is present, then rebuild the derived graph — it is
+deliberately not in Git because it is regenerable:
 
 ```
 pip install "graphify[mcp]"
-python tools/graph-resolver/resolver.py --full      # rebuild the resolved graph
+cd /path/to/AI-Studio
+python tools/graph-resolver/resolver.py --full
 ```
 
-`doctor` reports `vault resolved graph` as a WARNING until this is built. The vault's own
-post-commit hook keeps it fresh afterwards.
+Re-run `bin/studio bootstrap` in the infra repo so the two vault MCP servers get
+registered now that the vault exists.
 
-## If a capability is missing rather than broken
+### 4. Authenticate
 
-`doctor` distinguishes deliberately:
+Only two credentials, neither of which can safely live in Git:
 
-| Status | Means |
+- **GitHub** — `gh auth login`, or push once over HTTPS so Git Credential Manager stores a
+  credential. The MCP server reads it at connect time; nothing is written to config.
+- **Figma** — in Claude Code, `/mcp` → `figma` → Authenticate.
+
+### 5. Verify
+
+```
+bin/studio doctor
+```
+
+Then restart Claude Code and confirm from a **fresh session** that the skills and MCP
+servers are present. Configuration is a claim; a fresh session is the evidence.
+
+## Verified restore results
+
+A real clone-and-verify of the vault, performed as if the original did not exist:
+
+| Check | Result |
 |---|---|
-| `PASS` | working |
-| `WARNING` | working, but degraded or drifting |
-| `AUTH REQUIRED` | configured correctly, a human must authenticate |
-| `NOT CONFIGURED` | optional, absent, and that is fine |
-| `FAIL` | required, and broken. The only status that fails the exit code |
+| `git fsck` | clean |
+| HEAD equality | identical to origin |
+| Commit count | 40 = 40 |
+| Tracked files | 361 = 361, file lists identical |
+| Working tree | 0 missing checkouts |
+| Architecture docs | all present (`capability-routing`, the two constitutions, design standards) |
+| Obsidian structure | `.obsidian/` present, 225 notes, 177 containing wikilinks |
+| Retrieval layer rebuilt | 210 files, 2,105 links, 2,092 resolved, in 0.18s |
 
-## What is NOT recoverable from this repository
+The last row is the one that matters most: the knowledge layer is not merely *stored*, it
+is **queryable again** after restore.
 
-- **Client work and project history.** That is the vault. Back it up separately.
-- **Credentials.** By design. They are re-issued, never restored.
-- **Application repositories.** Cloned from their own remotes.
+## Why there is no `studio recover` command
 
-## Verifying the rebuild honestly
+Considered and deliberately rejected. It would be a thin wrapper over `git clone`, an
+environment variable, and a script that already exists, while the steps that actually carry
+risk — installing Claude Code, authenticating GitHub and Figma — cannot be automated at
+all. `bootstrap` already converges everything mechanical and is idempotent, and `doctor`
+names each missing piece together with its fix. A `recover` verb would add surface and
+another thing to trust without removing a single genuinely hard step.
 
-Configuration files are a claim; a fresh session is the evidence. Open Claude Code in an
-empty directory and ask it to list its skills and MCP servers. If that list matches
-`studio manifest`, the environment is genuinely restored.
+Fewer trustworthy commands beat more wrappers.
+
+## What is deliberately NOT recoverable from Git
+
+- **Credentials.** By design. Re-issued, never restored.
+- **Derived artefacts** — `graphify-out/`, caches, `__pycache__`. Regenerated in step 3.
+- **Application repositories.** Cloned from their own remotes; they are not part of this
+  system and inherit every capability automatically once the environment is up.
+
+## Recovery drill
+
+Do this occasionally rather than trusting that it still works:
+
+1. Clone the vault to a scratch directory.
+2. `git fsck`, compare HEAD and `git ls-files | wc -l` against the live copy.
+3. Rebuild the resolver graph inside the scratch copy.
+4. Delete it.
+
+Never point the live environment at the scratch copy.

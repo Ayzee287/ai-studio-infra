@@ -116,27 +116,54 @@ def claude_json() -> Path:
 
 
 def find_claude_cli() -> Path | None:
-    """Claude Code may be a PATH binary or bundled inside the VS Code extension."""
+    """Locate the Claude Code CLI.
+
+    Deliberately not home-relative only. The greenfield test exposed the failure: with an
+    isolated HOME, detection found nothing and bootstrap silently skipped every required
+    plugin with a warning. The same happens on a real machine whenever Claude Code lives
+    outside the current user's profile, which the VS Code extension layout makes common.
+
+    Order: explicit override, PATH, then the editor extension directories of both the
+    current HOME and the real OS user profile.
+    """
+    override = os.environ.get("STUDIO_CLAUDE_CLI")
+    if override and Path(override).exists():
+        return Path(override)
+
     which = shutil.which("claude")
     if which:
         return Path(which)
-    ext_roots = [
-        Path.home() / ".vscode" / "extensions",
-        Path.home() / ".vscode-insiders" / "extensions",
-        Path.home() / ".vscode-server" / "extensions",
-    ]
+
+    homes: list[Path] = [Path.home()]
+    # USERPROFILE/HOME may be overridden (tests, CI); also consult the OS-level profile.
+    for key in ("USERPROFILE", "HOME"):
+        v = os.environ.get(key)
+        if v:
+            homes.append(Path(v))
+    if os.name == "nt":
+        users = Path(os.environ.get("SystemDrive", "C:") + "\\Users")
+        if users.is_dir():
+            homes.extend(p for p in users.iterdir() if p.is_dir() and p.name not in ("Public", "Default"))
+
+    seen: set[str] = set()
     candidates: list[Path] = []
-    for root in ext_roots:
-        if not root.is_dir():
+    for home in homes:
+        key = str(home).lower()
+        if key in seen:
             continue
-        for d in root.glob("anthropic.claude-code-*"):
-            for rel in ("resources/native-binary/claude.exe", "resources/native-binary/claude"):
-                p = d / rel
-                if p.exists():
-                    candidates.append(p)
+        seen.add(key)
+        for ext_dir in (".vscode/extensions", ".vscode-insiders/extensions", ".vscode-server/extensions"):
+            root = home / ext_dir
+            if not root.is_dir():
+                continue
+            for d in root.glob("anthropic.claude-code-*"):
+                for rel in ("resources/native-binary/claude.exe", "resources/native-binary/claude"):
+                    p = d / rel
+                    if p.exists():
+                        candidates.append(p)
     if not candidates:
         return None
-    # Highest version wins; directory names sort acceptably for this purpose.
+    # Highest version wins; the extension directory name carries the version.
     return sorted(candidates, key=lambda p: p.parent.parent.parent.name)[-1]
 
 
