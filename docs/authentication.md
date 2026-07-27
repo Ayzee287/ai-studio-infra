@@ -48,6 +48,32 @@ treat Figma as read-only.
 
 **Verify:** `studio doctor` shows `figma credential`, and `/mcp` shows figma connected.
 
+## Resend — OAuth (Resend-hosted remote server)
+
+**What it is:** the **official** Resend MCP server — `github.com/resend/resend-mcp`, published to
+npm as `resend-mcp` and maintained by the Resend team (the same accounts that publish the `resend`
+SDK). Resend hosts it at `https://mcp.resend.com/mcp`; we connect to the hosted server rather than
+running the local package.
+
+**Why OAuth and not an API key:** the local package (`npx -y resend-mcp`) needs `RESEND_API_KEY`
+present in configuration. The hosted server supports OAuth, so **no Resend key is ever written to
+`~/.claude.json`, this repository, or anywhere else at rest.** That is the deciding factor; a Bearer
+key is also supported upstream and is deliberately not used here.
+
+**Where the credential lives:** Claude Code's own credential store.
+
+**Set it up:** in Claude Code run `/mcp`, select `resend`, choose Authenticate, complete the browser
+login to Resend. One time per machine. Claude Code must be restarted after `studio bootstrap` adds
+the server before `/mcp` will list it.
+
+**What it owns:** *operating and inspecting* the Resend account — domain/DNS verification status,
+delivery logs, suppressions, sending a real test message. It is **not** the delivery path for site
+mail: the Adamenko site sends through its own Resend REST call in `src/lib/email/`, which has no
+runtime dependency on this server.
+
+**Verify:** `studio doctor` shows `resend` as `configured, not authenticated` before the flow and
+passing after it; `/mcp` shows resend connected.
+
 ## Nothing else needs a credential
 
 Chrome DevTools, Playwright, Context7 and shadcn all run unauthenticated. The vault servers
