@@ -291,6 +291,54 @@
       "health": {
         "kind": "mcp-connect"
       }
+    },
+    {
+      "id": "higgsfield",
+      "scope": "user",
+      "required": false,
+      "transport": "http",
+      "url": "https://mcp.higgsfield.ai/mcp",
+      "owns": "Generative visual media: image generation (to 4K), short video (to ~15s), character/style training (Soul), and browsing generation history. Fronts 30+ models (Soul, Cinema Studio, Flux, Seedream, Kling, Minimax Hailuo, Veo) behind one server, which is the reason to prefer it over wiring individual model vendors.",
+      "auth": {
+        "kind": "oauth",
+        "operatorAction": "Run /mcp in Claude Code, pick higgsfield, choose Authenticate, complete the browser login to Higgsfield.",
+        "storedBy": "Claude Code credential store (~/.claude/.credentials.json)",
+        "notes": "Official Higgsfield-hosted remote server (higgsfield.ai/mcp). OAuth in-client, so NO API key or secret is written to configuration or this repository -- the same reason resend and figma are remote+OAuth here rather than local+key. Community stdio alternatives exist (geopopos/higgsfield_ai_mcp) but require HIGGSFIELD_API_KEY + HIGGSFIELD_SECRET at rest. Generation consumes Higgsfield plan credits."
+      },
+      "health": {
+        "kind": "mcp-connect"
+      }
+    },
+    {
+      "id": "perplexity",
+      "scope": "user",
+      "required": false,
+      "transport": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@perplexity-ai/mcp-server"
+      ],
+      "posixCommand": "npx",
+      "posixArgs": [
+        "-y",
+        "@perplexity-ai/mcp-server"
+      ],
+      "requires": [
+        "env:PERPLEXITY_API_KEY"
+      ],
+      "owns": "Searched, citation-bearing research against the live web: ranked search (perplexity_search), conversational search (perplexity_ask), multi-step deep research with sources (perplexity_research), and reasoning over retrieved material (perplexity_reason).",
+      "auth": {
+        "kind": "env-var",
+        "operatorAction": "Create a key at https://console.perplexity.ai, then set it as a USER environment variable named PERPLEXITY_API_KEY (Windows: setx PERPLEXITY_API_KEY \"...\"), reopen the terminal, and run: studio bootstrap",
+        "storedBy": "OS user environment. NEVER written to ~/.claude.json or this repository.",
+        "notes": "Official server (github.com/perplexityai/modelcontextprotocol, npm @perplexity-ai/mcp-server). No hosted HTTP/OAuth endpoint is documented, so an API key is the only supported auth. Verified 2026-07-27: the process EXITS with 'PERPLEXITY_API_KEY environment variable is required' when the variable is absent, so it is deliberately not written into ~/.claude.json until the key exists -- a configured-but-failing server degrades every session start. The stdio process inherits the OS environment, so no `env` block (and therefore no secret) is needed in configuration."
+      },
+      "health": {
+        "kind": "mcp-connect"
+      }
     }
   ],
   "plugins": [
@@ -398,6 +446,21 @@
       "owner": "operator, out of band",
       "scope": "Deployment, domains, environment variables.",
       "note": "Deliberately NOT integrated. Deploys are operator-owned; the Vercel MCP adds an OAuth wall for a workflow we do not automate."
+    },
+    "research": {
+      "owner": "built-in WebSearch + WebFetch + the defuddle skill; perplexity MCP for searched, citation-bearing research",
+      "scope": "External and current information: the web, current docs, competitor and reference material, anything outside training data.",
+      "note": "Two tiers, and Claude picks. Built-ins answer a direct question or fetch a known page and are always available. The perplexity server adds ranked search and multi-step deep research that returns sources, which is what a claim needing citation wants. Neither is mandatory for any task; there is no rule that research must route through a vendor."
+    },
+    "library-docs": {
+      "owner": "context7 MCP",
+      "scope": "Version-accurate API surface for a named library, framework, SDK or CLI.",
+      "note": "Distinct from research: context7 answers 'what is the current API', WebSearch answers 'what exists in the world'. Prefer context7 for a named library because training data lags."
+    },
+    "visual-assets": {
+      "owner": "shipped client imagery: the operator's real photography and verified institutional sources. Generated imagery and video: higgsfield MCP. Diagrams and vector work: code Claude writes (SVG, CSS, canvas).",
+      "scope": "Imagery, illustration, motion and graphical assets, whether for exploration or for shipping.",
+      "note": "The binding constraint is honesty, not the tool class: generated imagery is never presented as someone's real photography or as verified institutional data. Within that, generation is ordinary work -- concepting, mood and direction studies, placeholders, motion tests, internal presentation material. Higgsfield fronts 30+ models, so it is one integration rather than a per-vendor collection. Generation spends account credits, which is a reason to choose deliberately, not a rule against choosing."
     }
   }
 }

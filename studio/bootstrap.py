@@ -116,6 +116,16 @@ def _sync_mcp(manifest: dict, ctx: dict, r: Runner) -> None:
             r.warn(f"{sid}: skipped, vault not present (set STUDIO_VAULT)")
             continue
 
+        # A server whose process refuses to start without a secret must not be written into
+        # ~/.claude.json before that secret exists: it would fail on every session start.
+        # `requires: ["env:NAME"]` gates the entry on the variable being present in the
+        # environment, which keeps the credential in the OS and out of every tracked file.
+        missing_env = [n.split(":", 1)[1] for n in needs
+                       if n.startswith("env:") and not os.environ.get(n.split(":", 1)[1])]
+        if missing_env:
+            r.warn(f"{sid}: skipped, {', '.join(missing_env)} not set in the environment")
+            continue
+
         if spec["transport"] == "stdio":
             cmd_key, args_key = ("command", "args")
             if os.name != "nt" and spec.get("posixCommand"):

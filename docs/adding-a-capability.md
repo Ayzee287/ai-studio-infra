@@ -86,9 +86,10 @@ evidence.
 
 ## 6. Record the decision
 
-Add it to the vault's `00_System/capability-routing.md` classification record, including
-what you rejected and why. The rejections are more valuable than the approvals: they stop
-the same candidate being re-evaluated every six months.
+Add it to the vault's `00_System/capabilities.md`, including what you rejected and why.
+The rejections are worth recording: they stop the same candidate being re-evaluated every six
+months. Write them as positions, not prohibitions — a rejection records the evidence available
+at the time, and new evidence is reason enough to revisit it.
 
 ## Removing a capability
 

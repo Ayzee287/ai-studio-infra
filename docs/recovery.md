@@ -90,7 +90,7 @@ A real clone-and-verify of the vault, performed as if the original did not exist
 | Commit count | 40 = 40 |
 | Tracked files | 361 = 361, file lists identical |
 | Working tree | 0 missing checkouts |
-| Architecture docs | all present (`capability-routing`, the two constitutions, design standards) |
+| Architecture docs | all present (the `00_System/` notes and the client architecture trees) |
 | Obsidian structure | `.obsidian/` present, 225 notes, 177 containing wikilinks |
 | Retrieval layer rebuilt | 210 files, 2,105 links, 2,092 resolved, in 0.18s |
 

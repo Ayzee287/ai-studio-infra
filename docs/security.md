@@ -61,7 +61,7 @@ Third-party code is admitted only after inspection, and each route is a delibera
 | **marketplace** | first-party Anthropic plugins from the official catalog | `frontend-design`, `typescript-lsp`, `pr-review-toolkit` |
 | **upstream installer** | actively maintained, first-party installer, pinning would rot | `humanizer` (MIT, 31k★) |
 | **vendored** | we want *one file* out of a larger repo, or upstream moves fast enough to need review-before-update | `redesign-existing-projects` |
-| **rejected** | fails inspection on size, licence, architecture, or trust | see the vault's capability-routing §4c |
+| **rejected** | fails inspection on size, licence, architecture, or trust | see the vault's `00_System/capabilities.md` |
 
 Every vendored skill carries a `PROVENANCE.md` recording upstream URL, licence, vendoring
 date, **what was deliberately not taken**, and the update/remove commands. Vendoring

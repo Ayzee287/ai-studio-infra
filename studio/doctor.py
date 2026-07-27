@@ -167,8 +167,13 @@ def run_doctor(argv: list[str]) -> int:
         entry = configured.get(sid)
         if not entry:
             needs = s.get("requires") or []
+            missing_env = [n.split(":", 1)[1] for n in needs
+                           if n.startswith("env:") and not os.environ.get(n.split(":", 1)[1])]
             if "vault" in needs and not vault:
                 add("MCP servers", sid, NOT_CONFIGURED, "needs the vault", "clone the vault, then: studio bootstrap")
+            elif missing_env:
+                add("MCP servers", sid, AUTH_REQUIRED, f"{', '.join(missing_env)} not set",
+                    (s.get("auth") or {}).get("operatorAction", "supply the credential, then: studio bootstrap"))
             else:
                 add("MCP servers", sid, FAIL if required else NOT_CONFIGURED, "not in ~/.claude.json",
                     "studio bootstrap", required)
