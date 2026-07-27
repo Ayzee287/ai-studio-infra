@@ -310,6 +310,37 @@
       }
     },
     {
+      "id": "gsc",
+      "scope": "user",
+      "required": false,
+      "transport": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "mcp-server-gsc"
+      ],
+      "posixCommand": "npx",
+      "posixArgs": [
+        "-y",
+        "mcp-server-gsc"
+      ],
+      "requires": [
+        "env:GOOGLE_APPLICATION_CREDENTIALS"
+      ],
+      "owns": "Google Search Console data: search-analytics performance (clicks, impressions, CTR, average position) by query, page, country, device and date; quick-wins detection; sitemap listing; URL/index inspection. The organic-search evidence layer -- what people actually searched to reach a site, as opposed to what we assume they searched.",
+      "auth": {
+        "kind": "env-var",
+        "operatorAction": "Create a service account in the Google Cloud project, download its JSON key OUTSIDE any repository, add the service-account email as a user on the Search Console property, then set GOOGLE_APPLICATION_CREDENTIALS to the key path (Windows: setx GOOGLE_APPLICATION_CREDENTIALS \"C:\\\\path\\\\to\\\\key.json\") and run: studio bootstrap",
+        "storedBy": "OS user environment holds the PATH; the key file lives outside every git repository. Neither the key nor its contents are ever written to ~/.claude.json or this repository.",
+        "notes": "Community server (npm mcp-server-gsc, MIT, ~251 stars, v0.3.0 published 2026-02-13 -- maintained but not fast-moving; Google publishes no official Search Console MCP). Verified 2026-07-27 by enumerating tools/list against live credentials: 8 tools -- list_sites, search_analytics, enhanced_search_analytics, detect_quick_wins, list_sitemaps, get_sitemap, index_inspect, and submit_sitemap. NOTE: submit_sitemap is a WRITE. The server is therefore NOT read-only by construction; read-only is enforced by granting the service account Search Console 'Restricted' permission (siteRestrictedUser), which cannot submit. Grant Restricted unless a task genuinely needs to write. The process EXITS with 'GOOGLE_APPLICATION_CREDENTIALS environment variable is required' when the variable is absent, so it is gated the same way perplexity is. Access is scoped by Search Console user permissions, not IAM. If this server rots, the same data is one REST call away at searchconsole.googleapis.com."
+      },
+      "health": {
+        "kind": "mcp-connect"
+      }
+    },
+    {
       "id": "perplexity",
       "scope": "user",
       "required": false,
@@ -456,6 +487,16 @@
       "owner": "context7 MCP",
       "scope": "Version-accurate API surface for a named library, framework, SDK or CLI.",
       "note": "Distinct from research: context7 answers 'what is the current API', WebSearch answers 'what exists in the world'. Prefer context7 for a named library because training data lags."
+    },
+    "organic-search": {
+      "owner": "gsc MCP server (Search Console API; effectively read-only via a Restricted service account)",
+      "scope": "What people actually search to reach a site: queries, impressions, clicks, CTR, average position, by page/country/device/date. Plus sitemap submission state and index coverage.",
+      "note": "The only source of real query data -- rank trackers and keyword tools estimate, Search Console measures. Deliberately NOT paired with Google Analytics 4: this studio's sites run cookieless analytics (Vercel Web Analytics), and GA4 would force a consent banner for behavioural data that Search Console does not need. Traffic and Web Vitals are answered by Vercel Analytics; organic-search performance by this server. See the Adamenko google-infrastructure note for the reasoning."
+    },
+    "local-search": {
+      "owner": "Google Places API (reviews, via the site's own sync script) -- Business Profile API pending operator application",
+      "scope": "Local presence: reviews, and later Business Profile insights (discovery vs direct searches, calls, direction requests), posts and Q&A.",
+      "note": "Google publishes no official Business Profile MCP, and the Business Profile API requires a formal access application plus a verified profile active 60+ days. Until that is granted, the working capability is the existing Places API key that already feeds the reviews pipeline. Do not add a second reviews path while that one works."
     },
     "visual-assets": {
       "owner": "shipped client imagery: the operator's real photography and verified institutional sources. Generated imagery and video: higgsfield MCP. Diagrams and vector work: code Claude writes (SVG, CSS, canvas).",

@@ -47,6 +47,7 @@ list is not absence of the capability.
 | Generating images, video, or trained characters/styles | `higgsfield` — 30+ models behind one server |
 | Design source of record, when a Figma file exists | `figma` |
 | Component and section sourcing | `shadcn` |
+| What people actually searched to reach a site | `gsc` — Search Console: queries, impressions, CTR, position (read-only) |
 | Remote git — repositories, PRs, issues, CI, releases | `github` MCP · local history stays with the `git` CLI |
 | Past decisions, project state, precedent | `aistudio-retrieval` · `graphify-vault` → the vault |
 | Structure of a code repository | that repo's `graphify` CLI · TypeScript LSP for type-aware work |
