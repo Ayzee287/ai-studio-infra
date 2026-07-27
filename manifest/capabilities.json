@@ -488,6 +488,11 @@
       "scope": "Version-accurate API surface for a named library, framework, SDK or CLI.",
       "note": "Distinct from research: context7 answers 'what is the current API', WebSearch answers 'what exists in the world'. Prefer context7 for a named library because training data lags."
     },
+    "web-performance": {
+      "owner": "chrome-devtools MCP for real traces; AI-Studio tools/perf/psi.py for the PageSpeed Insights API; npx lighthouse for a keyless local lab run",
+      "scope": "How fast a live page actually is: Core Web Vitals, the LCP element and its phase breakdown, render-blocking and bandwidth contention, and CrUX field data where it exists.",
+      "note": "Three tools, different jobs, and picking wrong is how a session chases a score instead of fixing a page. chrome-devtools throttles the network and CPU FOR REAL -- use it for causation (which element is the LCP, which phase, did a change help). PSI and local Lighthouse SIMULATE throttling: reproducible, pessimistic, and genuinely noisy -- measured on one unchanged build, LCP ranged 3.2-4.1s across eight runs. Never conclude a change helped from one run before and one after. PSI's unique value is CrUX field data; when CrUX says none, the page lacks traffic and the lab number is the only signal, which is worth stating rather than hiding. PAGESPEED_API_KEY is optional (raises the quota); no key is needed for occasional use."
+    },
     "organic-search": {
       "owner": "gsc MCP server (Search Console API; effectively read-only via a Restricted service account)",
       "scope": "What people actually search to reach a site: queries, impressions, clicks, CTR, average position, by page/country/device/date. Plus sitemap submission state and index coverage.",
