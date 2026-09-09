@@ -51,16 +51,48 @@ setx STUDIO_VAULT "C:\path\to\AI-Studio"        # Windows, persistent
 ```
 
 Open a **new** shell so `STUDIO_VAULT` is present, then rebuild the derived graph — it is
-deliberately not in Git because it is regenerable:
+deliberately not in Git because it is regenerable.
+
+> **Corrected 2026-09-09.** This step previously said `pip install "graphify[mcp]"` — that
+> package doesn't exist on PyPI (single-y; a 404, verified). The real dependency,
+> `AI-Studio/requirements.txt`'s own authoritative pin, is **`graphifyy`** (double-y — it
+> provides the importable `graphify` module, hence the confusion). It also pins `mcp<2`:
+> `graphifyy[mcp]` alone only constrains `mcp<3,>=1`, so an unconstrained install resolves to
+> the newest 2.x, whose `Server` class dropped the `@server.list_tools()`/`@server.call_tool()`
+> decorator API `tools/mcp/server.py` is written against — a real, reproduced `AttributeError`,
+> not a hypothetical. Always install from the vault's `requirements.txt`, never a bare package
+> name, so this constraint travels with the code that needs it.
+>
+> Most Linux distributions also refuse a bare `pip install` against the system Python (PEP 668,
+> "externally managed environment"). Use a **dedicated venv inside this repo** — `.venv/` is
+> already in this repo's `.gitignore` under its Python section, so that's the convention, not an
+> invented path:
+>
+> ```
+> cd /path/to/ai-studio-infra
+> python3 -m venv .venv
+> .venv/bin/pip install -r /path/to/AI-Studio/requirements.txt
+> ```
+>
+> Then point `bootstrap` at that interpreter so it writes the venv's path into the two vault MCP
+> servers' `command` field (not the system Python, which doesn't have the package):
+>
+> ```
+> STUDIO_PYTHON=/path/to/ai-studio-infra/.venv/bin/python bin/studio bootstrap
+> ```
+>
+> `sys.executable` inside `bootstrap` becomes whatever `STUDIO_PYTHON` resolves to, and that's
+> exactly what gets written — no separate venv-path config exists or is needed. On Windows,
+> where PEP 668 doesn't apply, the original one-line `pip install "graphifyy[mcp]"` against the
+> system interpreter still works.
 
 ```
-pip install "graphify[mcp]"
 cd /path/to/AI-Studio
 python tools/graph-resolver/resolver.py --full
 ```
 
 Re-run `bin/studio bootstrap` in the infra repo so the two vault MCP servers get
-registered now that the vault exists.
+registered now that the vault exists (with `STUDIO_PYTHON` set as above on POSIX).
 
 ### 4. Authenticate
 
