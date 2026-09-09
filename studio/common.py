@@ -152,7 +152,13 @@ def find_claude_cli() -> Path | None:
         if key in seen:
             continue
         seen.add(key)
-        for ext_dir in (".vscode/extensions", ".vscode-insiders/extensions", ".vscode-server/extensions"):
+        for ext_dir in (
+            ".vscode/extensions",
+            ".vscode-insiders/extensions",
+            ".vscode-server/extensions",
+            ".vscode-oss/extensions",
+            ".vscodium/extensions",
+        ):
             root = home / ext_dir
             if not root.is_dir():
                 continue
